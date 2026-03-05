@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HORMUZ SITUATION ROOM v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/styles/ag-grid.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/styles/ag-theme-quartz.css">
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/dist/ag-grid-community.min.noStyle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/split.js@1.6.5/dist/split.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<script src="https://unpkg.com/tippy.js@6"></script>
+<style>
+/* ===== RESET & ROOT ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root {
+  --bg: #080b11;
+  --surface: #0f1319;
+  --surface2: #161b24;
+  --surface3: #1c2333;
+  --border: #1c2333;
+  --border-focus: #2d3748;
+  --text-primary: #c9d1d9;
+  --text-secondary: #768390;
+  --text-tertiary: #484f58;
+  --blue: #388bfd;
+  --red: #f85149;
+  --green: #3fb950;
+  --amber: #d29922;
+  --purple: #a371f7;
+  --cyan: #39d2c0;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text-primary);font-family:var(--font-sans);font-size:12px;line-height:1.4}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border-focus);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:#475569}
+
+/* ===== APP LAYOUT ===== */
+.app{display:flex;height:100vh;width:100vw}
+
+/* ===== SIDEBAR ===== */
+.sidebar{width:44px;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:6px 0;flex-shrink:0;z-index:100}
+.sidebar .logo{width:30px;height:30px;background:var(--red);border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:9px;color:#fff;margin-bottom:12px;letter-spacing:-0.5px}
+.nav-btn{width:32px;height:32px;border:none;background:transparent;color:var(--text-tertiary);cursor:pointer;border-radius:2px;display:flex;align-items:center;justify-content:center;margin-bottom:2px;transition:all .12s;position:relative;border-left:2px solid transparent}
+.nav-btn:hover{color:var(--text-primary);background:rgba(56,139,253,0.06)}
+.nav-btn.active{color:var(--blue);border-left-color:var(--blue);background:rgba(56,139,253,0.08)}
+.nav-btn svg{width:16px;height:16px}
+
+/* ===== TOPBAR ===== */
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.topbar{height:28px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:12px;flex-shrink:0}
+.topbar .crisis-badge{background:var(--red);color:#fff;font-family:var(--font-mono);font-size:9px;font-weight:700;padding:1px 6px;border-radius:2px;letter-spacing:0.5px;animation:pulse-badge 2s infinite}
+@keyframes pulse-badge{0%,100%{opacity:1}50%{opacity:.6}}
+.topbar .briefing{color:var(--text-secondary);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar .clock{font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary)}
+
+/* ===== CONTENT / VIEWS ===== */
+.content{flex:1;overflow:hidden}
+.view{display:none;height:100%;overflow:hidden}
+.view.active{display:flex;flex-direction:column}
+
+/* ===== CARDS ===== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:2px;overflow:hidden}
+.card-header{padding:5px 10px;border-bottom:1px solid var(--border);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px}
+.card-body{padding:8px 10px}
+
+/* ===== METRICS ===== */
+.metric-strip{display:grid;grid-template-columns:repeat(8,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:2px;flex-shrink:0}
+.metric-card{background:var(--surface);padding:6px 8px}
+.metric-label{font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);margin-bottom:1px}
+.metric-value{font-family:var(--font-mono);font-size:20px;font-weight:700;line-height:1.2}
+.metric-sub{font-family:var(--font-mono);font-size:11px;margin-top:1px}
+.metric-sub.up{color:var(--green)}
+.metric-sub.down{color:var(--red)}
+.metric-sub.warn{color:var(--amber)}
+
+/* ===== TABLES ===== */
+.tbl{width:100%;border-collapse:collapse;font-size:11px}
+.tbl th{text-align:left;padding:4px 6px;font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:2}
+.tbl td{padding:3px 6px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:11px;color:var(--text-secondary)}
+.tbl tr:hover td{background:var(--surface2)}
+.tbl .pos{color:var(--green)}
+.tbl .neg{color:var(--red)}
+
+/* ===== SCENARIO CARDS ===== */
+.scenario-card{border-left:3px solid var(--border);margin-bottom:4px;cursor:pointer;transition:border-color .12s;background:var(--surface)}
+.scenario-card:hover{border-color:var(--blue)}
+.scenario-card.s1{border-left-color:var(--green)}
+.scenario-card.s2{border-left-color:var(--blue)}
+.scenario-card.s3{border-left-color:var(--amber)}
+.scenario-card.s4{border-left-color:var(--red)}
+.sc-head{padding:8px 10px;display:flex;align-items:center;gap:10px}
+.sc-prob{font-family:var(--font-mono);font-size:20px;font-weight:700;min-width:44px}
+.sc-info{flex:1}
+.sc-name{font-weight:600;font-size:12px;color:var(--text-primary)}
+.sc-desc{font-size:10px;color:var(--text-secondary);margin-top:1px}
+.sc-metrics{display:flex;gap:12px;font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);margin-top:2px}
+.sc-detail{display:none;padding:0 10px 10px;font-size:11px;color:var(--text-secondary);line-height:1.6}
+.sc-detail.open{display:block}
+.sc-detail h4{color:var(--text-primary);font-size:10px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:0.8px}
+.sc-detail p,.sc-detail li{margin-bottom:3px}
+.sc-detail ul{padding-left:14px}
+
+/* ===== TABS ===== */
+.tabs{display:flex;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0}
+.tab-btn{padding:5px 12px;font-size:10px;font-weight:500;color:var(--text-tertiary);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;white-space:nowrap;transition:all .12s;font-family:var(--font-sans)}
+.tab-btn:hover{color:var(--text-primary)}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ===== CHECKLIST ===== */
+.check-item{display:flex;align-items:flex-start;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)}
+.check-item:last-child{border:none}
+.check-item input[type=checkbox]{margin-top:2px;accent-color:var(--blue);flex-shrink:0}
+.check-item label{font-size:11px;color:var(--text-secondary);cursor:pointer;flex:1}
+.check-item label strong{color:var(--text-primary)}
+.badge{font-size:8px;padding:1px 4px;border-radius:2px;font-family:var(--font-mono);font-weight:600;display:inline-block;margin-right:2px;margin-top:2px}
+.badge-s1{background:#0d3320;color:#3fb950}
+.badge-s2{background:#0c2d50;color:#388bfd}
+.badge-s3{background:#3d2408;color:#d29922}
+.badge-s4{background:#4a1215;color:#f85149}
+
+/* ===== TRIGGER POINTS ===== */
+.trigger{display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:1px solid var(--border)}
+.trigger-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.trigger-dot.clear{background:var(--green)}
+.trigger-dot.approaching{background:var(--amber);animation:pulse-dot 1.5s infinite}
+.trigger-dot.triggered{background:var(--red);animation:pulse-dot 1s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+.trigger-info{flex:1}
+.trigger-name{font-size:11px;font-weight:500}
+.trigger-detail{font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono)}
+
+/* ===== AG GRID THEME ===== */
+.ag-theme-quartz-dark {
+  --ag-background-color: #0f1319;
+  --ag-header-background-color: #161b24;
+  --ag-odd-row-background-color: #0f1319;
+  --ag-row-hover-color: #1c2333;
+  --ag-border-color: #1c2333;
+  --ag-header-foreground-color: #768390;
+  --ag-foreground-color: #c9d1d9;
+  --ag-font-family: 'IBM Plex Mono', monospace;
+  --ag-font-size: 11px;
+  --ag-header-height: 32px;
+  --ag-row-height: 28px;
+}
+
+/* ===== SPLIT.JS GUTTERS ===== */
+.gutter{background:var(--border);cursor:col-resize;flex-shrink:0}
+.gutter:hover{background:var(--border-focus)}
+.gutter.gutter-horizontal{cursor:col-resize}
+.gutter.gutter-vertical{cursor:row-resize}
+
+/* ===== MAP ===== */
+.maplibregl-map{background:var(--bg)!important}
+.maplibregl-popup-content{background:var(--surface)!important;color:var(--text-primary)!important;border:1px solid var(--border)!important;border-radius:2px!important;padding:8px 10px!important;font-size:11px!important;font-family:var(--font-sans)!important;box-shadow:0 4px 12px rgba(0,0,0,0.5)!important}
+.maplibregl-popup-tip{border-top-color:var(--surface)!important}
+.maplibregl-popup-close-button{color:var(--text-tertiary)!important;font-size:14px!important}
+.maplibregl-ctrl-group{background:var(--surface)!important;border:1px solid var(--border)!important}
+.maplibregl-ctrl-group button{color:var(--text-primary)!important}
+.maplibregl-ctrl-group button+button{border-top:1px solid var(--border)!important}
+
+/* ===== TRADINGVIEW ===== */
+.tv-container{height:100%;min-height:280px;position:relative}
+.tv-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:11px;font-family:var(--font-mono)}
+
+/* ===== TREE ===== */
+.tree-view{width:100%;height:100%;overflow:hidden}
+
+/* ===== PULSING DOT ANIMATION ===== */
+@keyframes pulse-ring{0%{transform:scale(1);opacity:1}100%{transform:scale(3);opacity:0}}
+.pulse-marker{position:relative}
+.pulse-marker::after{content:'';position:absolute;inset:-4px;border-radius:50%;background:inherit;opacity:0.4;animation:pulse-ring 1.5s infinite}
+</style>
+</head>
+<body>
+<div class="app">
+<!-- ===== SIDEBAR ===== -->
+<nav class="sidebar">
+<div class="logo">HR</div>
+<button class="nav-btn active" data-view="overview" id="nav-overview">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+</button>
+<button class="nav-btn" data-view="tree" id="nav-tree">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg>
+</button>
+<button class="nav-btn" data-view="scenarios" id="nav-scenarios">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+</button>
+<button class="nav-btn" data-view="exposures" id="nav-exposures">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+</button>
+<button class="nav-btn" data-view="monitoring" id="nav-monitoring">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+</button>
+<button class="nav-btn" data-view="livedata" id="nav-livedata">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+</button>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+<div class="topbar">
+<span class="crisis-badge">ACTIVE CRISIS</span>
+<span class="briefing">Strait of Hormuz insurance-driven closure | Day 5 | 20M bpd at risk | All 12 P&I Clubs withdrew coverage | 3,200 vessels stranded | Brent +13% ~$82 | VLCC rates ATH $424K/day</span>
+<span class="clock" id="clock"></span>
+</div>
+<div class="content">
+
+<!-- ========== VIEW 1: OVERVIEW ========== -->
+<div class="view active" id="view-overview">
+<div class="metric-strip" id="metricStrip"></div>
+<div style="flex:1;display:flex;overflow:hidden;min-height:0" id="overview-split">
+<div id="overview-left" style="overflow:hidden;display:flex;flex-direction:column">
+<div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+<div class="card-header">THEATER MAP</div>
+<div id="map" style="flex:1;min-height:0"></div>
+</div>
+</div>
+<div id="overview-right" style="overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:0 0 0 0">
+<div class="card">
+<div class="card-header">SCENARIO PROBABILITIES</div>
+<div class="card-body" style="padding:6px 8px"><div id="scenarioBarChart" style="height:130px"></div></div>
+</div>
+<div class="card" style="flex:1;overflow-y:auto">
+<div class="card-header" style="color:var(--amber)">HIGHEST-CONVICTION CALLS</div>
+<div class="card-body" id="convictionCalls" style="font-size:11px;color:var(--text-secondary);line-height:1.6"></div>
+</div>
+<div class="card">
+<div class="card-header">BASE CASE: "THE ATTRITIONAL CAMPAIGN" &mdash; 40%</div>
+<div class="card-body" style="font-size:11px;color:var(--text-secondary);line-height:1.5">
+US air campaign 6-10 weeks. Iran area denial, no mining. Houthis resume Red Sea. Insurance withdrawal 3-6 months post-ceasefire. Oil $95-120. Stagflationary but not recessionary if &lt;14 weeks. <strong style="color:var(--amber)">Binary signal: Iranian mine-laying separates S2 from S3.</strong>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ========== VIEW 2: SCENARIO TREE ========== -->
+<div class="view" id="view-tree">
+<div class="tree-view" id="treeContainer"></div>
+</div>
+
+<!-- ========== VIEW 3: SCENARIOS ========== -->
+<div class="view" id="view-scenarios">
+<div style="flex:1;display:flex;overflow:hidden;min-height:0" id="scenarios-split">
+<div id="scenarios-left" style="overflow-y:auto;padding-right:4px"></div>
+<div id="scenarios-right" style="overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+</div>
+</div>
+
+<!-- ========== VIEW 4: EXPOSURES ========== -->
+<div class="view" id="view-exposures">
+<div class="tabs" id="exposureTabs"></div>
+<div id="exposureContent" style="flex:1;overflow:hidden;min-height:0"></div>
+</div>
+
+<!-- ========== VIEW 5: MONITORING ========== -->
+<div class="view" id="view-monitoring">
+<div style="flex:1;display:flex;overflow:hidden;min-height:0" id="monitoring-split">
+<div id="monitoring-left" style="overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+<div id="monitoring-right" style="overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+</div>
+</div>
+
+<!-- ========== VIEW 6: LIVE DATA ========== -->
+<div class="view" id="view-livedata">
+<div class="tabs" id="liveTabs"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4px;padding:4px;flex:1;min-height:0;overflow:hidden">
+<div class="card" id="tv-chart-0" style="overflow:hidden"><div class="tv-container"><div class="tv-placeholder">Loading TradingView...</div></div></div>
+<div class="card" id="tv-chart-1" style="overflow:hidden"><div class="tv-container"><div class="tv-placeholder">Loading TradingView...</div></div></div>
+<div class="card" id="tv-chart-2" style="overflow:hidden"><div class="tv-container"><div class="tv-placeholder">Loading TradingView...</div></div></div>
+<div class="card" id="tv-chart-3" style="overflow:hidden"><div class="tv-container"><div class="tv-placeholder">Loading TradingView...</div></div></div>
+</div>
+</div>
+
+</div><!-- content -->
+</div><!-- main -->
+</div><!-- app -->
+
+<script src="https://s3.tradingview.com/tv.js" async></script>
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const DATA = {
+  metrics: [
+    { label: 'Brent Crude', value: '$82.40', sub: '+13.2% from $72.80', cls: 'up' },
+    { label: 'WTI Crude', value: '$75.60', sub: '+12.8% from $67.00', cls: 'up' },
+    { label: 'EU TTF Gas', value: '\u20AC48.00', sub: '+60% from \u20AC30', cls: 'up' },
+    { label: 'VLCC TD3', value: '$423.7K', sub: '+94% 1-day / ATH', cls: 'up' },
+    { label: 'Gold', value: '$5,270', sub: '+8% ATH', cls: 'up' },
+    { label: 'KOSPI', value: '2,148', sub: '-12.1% worst ever', cls: 'down' },
+    { label: 'S&P 500', value: '6,870', sub: '~Flat (rotation)', cls: 'warn' },
+    { label: 'Crisis Day', value: 'DAY 5', sub: 'Feb 28 - Mar 5', cls: 'warn', valueColor: 'var(--red)' }
+  ],
+
+  scenarios: [
+    {
+      id: 'S1', prob: '15%', probColor: 'var(--green)', cls: 's1',
+      name: 'S1: "The Goldman Base Case" \u2014 Swift Diplomatic Resolution',
+      desc: 'Backchannel diplomacy through Oman produces ceasefire framework by Mar 22-26. Trump declares victory early.',
+      metrics: ['Oil: $82-95', 'Duration: 3-6wk', 'Insurance lag: 6-8wk'],
+      detail: `<h4>Narrative</h4><p>Omani-mediated backchannel produces framework within 2-3 weeks. IRGC accepts de-escalation to preserve remaining assets. Houthi attacks remain symbolic. Trump declares victory.</p><h4>Key Price Trajectories</h4><ul><li>Brent: $84 &rarr; $90-95 peak &rarr; $78-82 on ceasefire &rarr; $75-78 settlement</li><li>TTF: EUR60 peak &rarr; EUR42-48 on ceasefire &rarr; EUR35-38 normalized</li><li>VLCC TD3: $423K peak &rarr; $350K sustained &rarr; $80-100K normalization</li><li>Gold: $5,270-5,400 peak &rarr; $5,100-5,200 settlement (permanent geopolitical premium)</li></ul><h4>Critical Insight</h4><p>Even in the best case, insurance recovery lags ceasefire by 6-8 weeks. Creates tradeable divergence between military timeline and commercial shipping timeline.</p><h4>What Breaks This</h4><ul><li>Mojtaba Khamenei consolidates hardline power</li><li>Major new vessel attack</li><li>Trump orders expanded targeting</li><li>Houthis achieve high-profile Red Sea strike</li></ul><h4>Historical Analog</h4><p>2019 Abqaiq attack &mdash; massive single-event disruption, rapid Saudi restoration, markets normalized within weeks. <strong style="color:var(--amber)">Where it breaks:</strong> Abqaiq was infrastructure damage with single-entity repair. This is institutional/insurance breakdown requiring multi-party restoration.</p>`
+    },
+    {
+      id: 'S2', prob: '40%', probColor: 'var(--blue)', cls: 's2',
+      name: 'S2: "The Attritional Campaign" \u2014 BASE CASE',
+      desc: 'US air campaign 6-10 weeks. Iran area denial, no mining. Houthis resume moderate Red Sea attacks. Slow Omani diplomacy.',
+      metrics: ['Oil: $95-120', 'Duration: 8-14wk', 'Insurance: 3-6mo'],
+      detail: `<h4>The Iraq Subplot</h4><p>Iraq shuts 3M bpd production. 93% of revenue from oil. Fiscal crisis within 4 weeks. Domino chain: insurance withdrawal &rarr; no tanker loading &rarr; storage fills &rarr; production shutdown &rarr; fiscal crisis &rarr; salary cuts for 4M employees &rarr; street protests &rarr; potential government collapse (15-20%).</p><h4>Four-Order Cascade</h4><ul><li><strong>1st order (Days 1-7):</strong> Crude deficit, LNG deficit, container halt. Fully priced.</li><li><strong>2nd order (Weeks 1-4):</strong> Crude spike &rarr; jet fuel &rarr; airline margins; LNG &rarr; gas &rarr; power &rarr; industrial curtailment.</li><li><strong>3rd order (Weeks 4-10):</strong> Iraq fiscal crisis. Insurance-shipping-production spiral. Fertilizer &rarr; food chain.</li><li><strong>4th order (Months 2-6):</strong> Fed trapped (CPI 3.0-3.5%). EM capital flight. Pakistan default 35-45%.</li></ul><h4>Non-Linear Tipping Points</h4><ul><li>Oil $130+ for 2+ weeks = recession trigger</li><li>EU gas storage &lt;20% = industrial rationing</li><li>Iraqi government collapse = failed state overlay</li><li>Pakistan default = EM contagion chain</li></ul>`
+    },
+    {
+      id: 'S3', prob: '30%', probColor: 'var(--amber)', cls: 's3',
+      name: 'S3: "The Dual Chokepoint Siege" \u2014 Mining + Red Sea Closure',
+      desc: 'Iran mines Hormuz. Houthis close Red Sea. Both chokepoints offline. Mine clearance = hostage timeline.',
+      metrics: ['Oil: $125-170', 'Duration: 6-12mo', 'RECESSION'],
+      detail: `<h4>The Hostage Timeline</h4><p>Mines in the water are indifferent to diplomacy. Ceasefire on Day 108 &ne; ships transit Day 109. Mine clearance: 2-6 months. 1991 Gulf War: 10 years full clearance. Insurance restoration impossible until clearance certified.</p><h4>Five Interacting Cascades</h4><ul><li><strong>Mining:</strong> Mines &rarr; insurance impossible &rarr; ceasefire doesn't restore shipping &rarr; 10-14 month closure</li><li><strong>Food ("Slow Fuse"):</strong> 5Mtpa urea offline &rarr; $850/mt &rarr; planting disrupted &rarr; harvests -5-8% &rarr; famine risk</li><li><strong>Financial:</strong> Oil $130+ &rarr; recession &rarr; S&P -25-30% &rarr; EM defaults &rarr; systemic risk</li><li><strong>Energy Rationing:</strong> Gas rationing &rarr; BASF -60% &rarr; demand destruction CAPS oil at ~$140-160</li><li><strong>Shipping Capacity:</strong> Both chokepoints closed &rarr; Cape only &rarr; fleet -20-25% &rarr; trade -15-20%</li></ul><h4>Why 30% (Market Prices ~10-15%)</h4><p>Extended campaign (70%) &times; Houthi full resumption (65%) &times; mining (40%) = 18% primary path + 12% secondary paths. The 2-3x gap vs market is the tradeable edge.</p><h4>Key Convexity Plays</h4><ul><li>CBOT wheat calls Dec '26 $10/bu: ~$0.20 &rarr; $2-4. <strong>10-20x payoff.</strong></li><li>CF Industries Jul $90 calls: $3 &rarr; $40+. <strong>10-15x payoff.</strong></li><li>EEM put spreads $38/$30 Jun: $2.50 &rarr; $5.50. <strong>2.2x max.</strong></li></ul>`
+    },
+    {
+      id: 'S4', prob: '15%', probColor: 'var(--red)', cls: 's4',
+      name: 'S4: "Regional Conflagration" \u2014 Full Escalation, Multi-Theater War',
+      desc: 'Ground invasion. Desalination strikes. Gulf states enter as belligerents. Hezbollah full northern front.',
+      metrics: ['Oil: $150-250+', 'Duration: 12+mo', 'GDP -2 to -4%'],
+      detail: `<h4>What Distinguishes This</h4><p>Physical destruction of infrastructure. Qatar Ras Laffan LNG: 18-36mo repair. Saudi Ras Tanura/Abqaiq: 6-18mo. UAE desalination strikes &rarr; water crisis for 9.5M people. Repair measured in years.</p><h4>Humanitarian Dimension</h4><p>Water rationing 50L/day vs normal 550L. Mass evacuation 3-5M over 3-6 months. Gulf remittances collapse ($30B/yr to India). 150-250M people affected. Famine risk.</p><h4>Financial Contagion</h4><p>Oil $170-200+ &rarr; S&P -30-40% &rarr; VIX 45-60 &rarr; CLO stress &rarr; DXY to 115-120 &rarr; Pakistan default &rarr; Egypt restructuring &rarr; European bank exposure. Central banks trapped: can't cut because inflation 5-7%.</p><h4>Extreme-Asymmetry Trades</h4><ul><li>Long NEM / Short AAL: +300-500% spread</li><li>Long LNG / Short STAN.L: +200-400% spread</li><li>Long FRO / Short EMAAR.DU: +250-450% spread</li></ul>`
+    }
+  ],
+
+  sectorComparison: [
+    ['Crude Oil','$82-95','$95-120','$125-170','$150-250+'],
+    ['Natural Gas','\u20AC60 peak','\u20AC75 peak','\u20AC100+','\u20AC100-150'],
+    ['Qatar LNG','4-8wk restart','8-14wk','6-12mo offline','18-36mo (damaged)'],
+    ['VLCC Rates','$423K peak','$380-480K','$200-400K','$500-700K'],
+    ['Insurance','6-8wk post-CF','3-6mo post-CF','12-24mo','3-5 years'],
+    ['Fertilizer/Food','Minor','Safrinha -5-8%','Famine 5-10 nations','150-250M affected'],
+    ['Gold','$5,150-5,300','$5,400-5,700','$6,000-7,000','$6,000-7,000+'],
+    ['S&P 500','-2-4%','-7-10%','-20-30%','-30-40%'],
+    ['KOSPI','-12-15%','-18-22%','-35-45%','-40%+'],
+    ['Pakistan','Stressed','Default 35-45%','Default 60-70%','Default certain'],
+    ['Iraq','Manageable','3M bpd shutdown','Failed state risk','Failed state'],
+    ['Gulf RE','-10-15%','-20-30%','-50-70%','-70-95%'],
+    ['US Shale','+15-25%','+25-35%','+40-80%','+60-120%'],
+    ['Duration (acute)','3-6 weeks','8-14 weeks','6-12 months','12+ months']
+  ],
+
+  winners: [
+    {n:1,name:'Frontline',ticker:'FRO',sector:'Tankers',s1:'+25%',s2:'+70%',s3:'+150%',s4:'+300%',pw:'+110%',conf:'Med-H'},
+    {n:2,name:'Newmont',ticker:'NEM',sector:'Gold Mining',s1:'+10%',s2:'+23%',s3:'+40%',s4:'+300%',pw:'+65%',conf:'High'},
+    {n:3,name:'Cheniere Energy',ticker:'LNG',sector:'US LNG',s1:'+20%',s2:'+38%',s3:'+65%',s4:'+225%',pw:'+62%',conf:'High'},
+    {n:4,name:'Barrick Gold',ticker:'GOLD',sector:'Gold Mining',s1:'+12%',s2:'+28%',s3:'+45%',s4:'+265%',pw:'+60%',conf:'High'},
+    {n:5,name:'CF Industries',ticker:'CF',sector:'Fertilizer',s1:'+15%',s2:'+35%',s3:'+80%',s4:'+160%',pw:'+58%',conf:'High'},
+    {n:6,name:'Equinor',ticker:'EQNR',sector:'Norwegian E&P',s1:'+12%',s2:'+28%',s3:'+100%',s4:'+105%',pw:'+55%',conf:'High'},
+    {n:7,name:'Nutrien',ticker:'NTR',sector:'Fertilizer',s1:'+10%',s2:'+30%',s3:'+65%',s4:'+140%',pw:'+50%',conf:'High'},
+    {n:8,name:'Agnico Eagle',ticker:'AEM',sector:'Gold Mining',s1:'+10%',s2:'+23%',s3:'+35%',s4:'+200%',pw:'+48%',conf:'High'},
+    {n:9,name:'Cameco',ticker:'CCJ',sector:'Uranium',s1:'+3%',s2:'+10%',s3:'+30%',s4:'+200%',pw:'+42%',conf:'Med'},
+    {n:10,name:'Diamondback',ticker:'FANG',sector:'US Shale',s1:'+15%',s2:'+33%',s3:'+55%',s4:'+90%',pw:'+42%',conf:'High'},
+    {n:11,name:'EOG Resources',ticker:'EOG',sector:'US Shale',s1:'+12%',s2:'+28%',s3:'+50%',s4:'+85%',pw:'+38%',conf:'High'},
+    {n:12,name:'Palantir',ticker:'PLTR',sector:'Defense Tech',s1:'+8%',s2:'+18%',s3:'+40%',s4:'+115%',pw:'+34%',conf:'Med'},
+    {n:13,name:'Constellation',ticker:'CEG',sector:'US Nuclear',s1:'+8%',s2:'+15%',s3:'+50%',s4:'+100%',pw:'+33%',conf:'Med-H'},
+    {n:14,name:'Lockheed Martin',ticker:'LMT',sector:'Defense',s1:'+8%',s2:'+10%',s3:'+32%',s4:'+65%',pw:'+22%',conf:'High'},
+    {n:15,name:'RTX',ticker:'RTX',sector:'Defense',s1:'+6%',s2:'+10%',s3:'+28%',s4:'+55%',pw:'+19%',conf:'High'}
+  ],
+
+  losers: [
+    {n:1,name:'DAMAC Properties',ticker:'DAMAC.DU',sector:'Gulf RE',s1:'-12%',s2:'-35%',s3:'-65%',s4:'-90%',pw:'-44%',conf:'Med-H'},
+    {n:2,name:'American Airlines',ticker:'AAL',sector:'Airline',s1:'-8%',s2:'-30%',s3:'-60%',s4:'-88%',pw:'-40%',conf:'High'},
+    {n:3,name:'Emaar Properties',ticker:'EMAAR.DU',sector:'Gulf RE',s1:'-10%',s2:'-25%',s3:'-60%',s4:'-83%',pw:'-38%',conf:'High'},
+    {n:4,name:'DP World',ticker:'DPW.DI',sector:'Gulf Ports',s1:'-10%',s2:'-20%',s3:'-63%',s4:'-70%',pw:'-36%',conf:'Med-H'},
+    {n:5,name:'Pakistan Sov.',ticker:'--',sector:'Sovereign',s1:'-5%',s2:'-25%',s3:'-55%',s4:'-65%',pw:'-33%',conf:'High'},
+    {n:6,name:'Indian Oil Corp',ticker:'IOC.NS',sector:'Refining',s1:'-8%',s2:'-25%',s3:'-50%',s4:'-60%',pw:'-32%',conf:'High'},
+    {n:7,name:'Aldar Properties',ticker:'ALDAR.AD',sector:'Gulf RE',s1:'-8%',s2:'-20%',s3:'-50%',s4:'-70%',pw:'-32%',conf:'Med'},
+    {n:8,name:'Emirates NBD',ticker:'ENBD.DU',sector:'Gulf Banking',s1:'-8%',s2:'-18%',s3:'-45%',s4:'-75%',pw:'-31%',conf:'Med'},
+    {n:9,name:'S-Oil',ticker:'010950.KS',sector:'Refining',s1:'-10%',s2:'-28%',s3:'-48%',s4:'-55%',pw:'-31%',conf:'High'},
+    {n:10,name:'Covestro',ticker:'1COV.DE',sector:'Chemicals',s1:'-5%',s2:'-22%',s3:'-50%',s4:'-58%',pw:'-30%',conf:'Med-H'},
+    {n:11,name:'SK Innovation',ticker:'096770.KS',sector:'Refining',s1:'-8%',s2:'-24%',s3:'-45%',s4:'-55%',pw:'-29%',conf:'High'},
+    {n:12,name:'United Airlines',ticker:'UAL',sector:'Airline',s1:'-6%',s2:'-24%',s3:'-45%',s4:'-55%',pw:'-29%',conf:'High'},
+    {n:13,name:'Lufthansa',ticker:'LHA.DE',sector:'Airline',s1:'-5%',s2:'-22%',s3:'-45%',s4:'-55%',pw:'-28%',conf:'High'},
+    {n:14,name:'BASF',ticker:'BAS.DE',sector:'Chemicals',s1:'-5%',s2:'-18%',s3:'-48%',s4:'-55%',pw:'-27%',conf:'High'},
+    {n:15,name:'Std Chartered',ticker:'STAN.L',sector:'Banking',s1:'-5%',s2:'-13%',s3:'-40%',s4:'-65%',pw:'-25%',conf:'Med-H'}
+  ],
+
+  pairs: [
+    {long:'EQNR',short:'BAS.DE',s1:'+10-15%',s2:'+40-55%',s3:'+80-120%',s4:'+100-150%',logic:'Oil+gas producer vs gas consumer'},
+    {long:'CF',short:'YAR.OL',s1:'+10-15%',s2:'+25-35%',s3:'+70-100%',s4:'+100-150%',logic:'US cheap-gas fert vs EU expensive-gas fert'},
+    {long:'NUE',short:'TKA.DE',s1:'+5-10%',s2:'+20-35%',s3:'+60-90%',s4:'+80-120%',logic:'US EAF steel vs EU blast furnace'},
+    {long:'CEG',short:'9501.T',s1:'+8-12%',s2:'+25-35%',s3:'+50-70%',s4:'+80-120%',logic:'US nuclear vs LNG-dependent JP utility'},
+    {long:'SHEL',short:'BP',s1:'+5-8%',s2:'+10-15%',s3:'+20-30%',s4:'+25-40%',logic:'LNG trading scale vs Iraq exposure'},
+    {long:'005930.KS',short:'051910.KS',s1:'+5-10%',s2:'+15-25%',s3:'+25-40%',s4:'+15-25%',logic:'Oversold tech vs impaired chemicals'},
+    {long:'NEM',short:'AAL',s1:'+18-22%',s2:'+53-60%',s3:'+100-120%',s4:'+300-500%',logic:'Gold safe haven vs airline bankruptcy'},
+    {long:'LNG',short:'STAN.L',s1:'+25-30%',s2:'+51-53%',s3:'+105-145%',s4:'+290-365%',logic:'Qatar replacement vs Gulf/EM bank'}
+  ],
+
+  asymTier1: [
+    {pos:'Long Gold (GLD)',s1:'+3-5%',s2:'+8-14%',s3:'+15-30%',s4:'+20-35%',pw:'+12-18%'},
+    {pos:'Long CF Industries',s1:'+15-25%',s2:'+30-40%',s3:'+60-100%',s4:'+120-200%',pw:'+45-70%'},
+    {pos:'Long Cheniere (LNG)',s1:'+15-25%',s2:'+35-40%',s3:'+50-80%',s4:'+150-300%',pw:'+45-65%'},
+    {pos:'Long Newmont (NEM)',s1:'+8-12%',s2:'+20-25%',s3:'+30-50%',s4:'+200-400%',pw:'+35-55%'},
+    {pos:'Short AAL',s1:'+5-10%',s2:'+25-35%',s3:'+50-70%',s4:'+80-95%',pw:'+30-45%'}
+  ],
+
+  asymTier2: [
+    {pos:'CBOT Wheat Dec\'26 $10',s1:'-100%',s2:'-50%',s3:'+900-1900%',s4:'+1500-2500%',payoff:'10-20x'},
+    {pos:'CF Jul $90 Calls',s1:'-100%',s2:'+100-200%',s3:'+900-1400%',s4:'+1500%+',payoff:'10-15x'},
+    {pos:'Gold Dec $7,000 Calls',s1:'-100%',s2:'-80%',s3:'+200-400%',s4:'+500-800%',payoff:'5-7x'},
+    {pos:'EEM $38/$30 Put Spread',s1:'-100%',s2:'-40%',s3:'+120%',s4:'+120%',payoff:'2.2x'},
+    {pos:'Short KRW (NDF)',s1:'-2-3%',s2:'+8-12%',s3:'+12-15%',s4:'+15-20%',payoff:'5:1'}
+  ],
+
+  emSovereigns: [
+    {country:'Pakistan',index:'KSE-100 / Sov Bonds',s1:'-10%',s2:'-30%',s3:'-55%',s4:'-65%',pw:'-35%',def:'~38%'},
+    {country:'South Korea',index:'KOSPI',s1:'-5%',s2:'-20%',s3:'-38%',s4:'-43%',pw:'-24%',def:'0%'},
+    {country:'Egypt',index:'EGX 30 / Sov Bonds',s1:'-3%',s2:'-15%',s3:'-40%',s4:'-55%',pw:'-23%',def:'~22%'},
+    {country:'Thailand',index:'SET',s1:'-4%',s2:'-15%',s3:'-28%',s4:'-35%',pw:'-18%',def:'0%'},
+    {country:'Turkey',index:'BIST 100',s1:'-3%',s2:'-12%',s3:'-30%',s4:'-40%',pw:'-18%',def:'Low'},
+    {country:'India',index:'Nifty 50',s1:'-3%',s2:'-12%',s3:'-25%',s4:'-35%',pw:'-16%',def:'0%'},
+    {country:'Japan',index:'Nikkei 225',s1:'-2%',s2:'-9%',s3:'-18%',s4:'-25%',pw:'-12%',def:'0%'},
+    {country:'China',index:'Shanghai Comp',s1:'-1%',s2:'-4%',s3:'-12%',s4:'-18%',pw:'-7%',def:'0%'}
+  ],
+
+  heatmapTickers: ['FRO','NEM','LNG','GOLD','CF','EQNR','NTR','AEM','CCJ','FANG','EOG','PLTR','CEG','LMT','RTX','AAL','EMAAR','DAMAC','DPW','STAN.L','IOC.NS','BAS.DE','UAL','LHA.DE','ENBD','S-Oil','1COV','SK Innov','ALDAR','Pakistan'],
+  heatmapValues: [110,65,62,60,58,55,50,48,42,42,38,34,33,22,19,-40,-38,-44,-36,-25,-32,-27,-29,-28,-31,-31,-30,-29,-32,-33],
+
+  signals: [
+    {id:'sig1',label:'Houthi attack frequency',detail:'4+/week = full Red Sea closure (S3)',source:'UKMTO daily reports',confirms:['S3','S4'],disconfirms:['S1']},
+    {id:'sig2',label:'Brent crude daily close',detail:'Sustained >$90 = S2; >$100 = S3 possible',source:'ICE',confirms:['S2','S3'],disconfirms:[]},
+    {id:'sig3',label:'IRGC statements on mining',detail:'Any reference to mines = mining imminent',source:'Iranian state media (IRNA, Fars)',confirms:['S3','S4'],disconfirms:['S1','S2']},
+    {id:'sig4',label:'DFC insurance details published',detail:'Specific terms, pricing, coverage limits',source:'DFC press releases',confirms:['S1'],disconfirms:[]},
+    {id:'sig5',label:'Omani diplomatic activity',detail:'"Constructive exchanges" = S1/S2; silence = S3/S4',source:'NYT/Reuters',confirms:['S1','S2'],disconfirms:['S3','S4']},
+    {id:'sig6',label:'US Navy MCM deployment orders',detail:'Additional MCM assets beyond Bahrain = mining expected',source:'CENTCOM, USNI News',confirms:['S3','S4'],disconfirms:[]},
+    {id:'sig7',label:'Vessel transit attempts via DFC',detail:'Any successful DFC-backed transit = S1 pathway',source:'MarineTraffic AIS',confirms:['S1'],disconfirms:['S3']},
+    {id:'sig8',label:'EU gas storage drawdown rate',detail:'Falling >1%/day = crisis; <0.5%/day = manageable',source:'GIE AGSI+',confirms:['S2','S3'],disconfirms:['S1']},
+    {id:'sig9',label:'KOSPI / EM equity stabilization',detail:'Stabilization vs continued selling; EM fund flows',source:'Bloomberg',confirms:['S1','S2'],disconfirms:['S3','S4']},
+    {id:'sig10',label:'82nd Airborne deployment status',detail:'Any preparation = S4 risk surge',source:'Fort Liberty tracking, CENTCOM',confirms:['S4'],disconfirms:['S1','S2']}
+  ],
+
+  triggers: [
+    {name:'Brent crude',current:'$82-84',threshold:'>$100 sustained',status:'clear',action:'Increase S3 to 35%, reduce S1 to 10%. Add agricultural longs.'},
+    {name:'Brent crude',current:'$82-84',threshold:'>$130 sustained',status:'clear',action:'Recession portfolio. S3/S4 combined >55%. Max defensive.'},
+    {name:'Mine confirmation',current:'None reported',threshold:'First confirmed mine',status:'clear',action:'IMMEDIATELY re-weight: S3 = 50%+. Full hostage-timeline positioning.'},
+    {name:'EU gas storage',current:'~38%',threshold:'Below 25%',status:'clear',action:'German Stage 2 emergency. Short EU industrials. Long EDF.'},
+    {name:'Pakistan CDS',current:'~900bps',threshold:'>2,000bps',status:'clear',action:'Market pricing default. Reduce all EM. EM contagion hedges.'},
+    {name:'Egypt CDS',current:'~600bps',threshold:'>1,500bps',status:'clear',action:'EM contagion cascade. Short EMB.'},
+    {name:'FAO Food Price Index',current:'~128',threshold:'>170',status:'clear',action:'Food crisis developing. Max agricultural longs.'},
+    {name:'DFC backstop',current:'Announced, no details',threshold:'Terms + first transit',status:'clear',action:'S1 prob to 20-25%. Take profits on tanker longs.'},
+    {name:'IRGC leadership',current:'Fractured',threshold:'Hardliner confirmed',status:'approaching',action:'Increase S3/S4 prob. Reduce S1 to 5-10%.'}
+  ],
+
+  matrixSignals: ['Brent <$90 (2wk)','Brent $95-120 (4wk)','Brent >$125','Brent >$150','AIS transits 20%+ (3wk)','Zero transits Wk10+','No mine reports','Mine confirmed','Houthi <2/wk','Houthi >4/wk','Omani breakthrough','Omani collapse','82nd deploys','Desal strikes','P&I re-engage','JWC expands'],
+  matrixData: [
+    [1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1],
+    [1,0,0,0],[0,0,1,1],[1,1,0,0],[0,0,1,1],
+    [1,1,0,0],[0,0,1,1],[1,0,0,0],[0,0,1,1],
+    [0,0,0,1],[0,0,0,1],[1,0,0,0],[0,0,1,1]
+  ],
+
+  convictionCalls: [
+    {num:1,color:'var(--red)',text:'Insurance recovery lags military resolution by months to years in EVERY scenario.',sub:'The market assumes ceasefire = shipping resumption. Wrong. Red Sea precedent: 2+ years, still not normalized.'},
+    {num:2,color:'var(--red)',text:'Market pricing ~4-week conflict.',sub:'Our base case: 8-14 weeks. Probability-weighted: ~16 weeks. Duration underpriced 3-4x.'},
+    {num:3,color:'var(--amber)',text:'Food security cascade is the most underpriced tail risk.',sub:'Qatar + Iran urea = 5M tonnes/year offline. No strategic fertilizer reserves. If past April, planting impacts irreversible.'},
+    {num:4,color:'var(--amber)',text:'Mining probability: 30-35%.',sub:'Creates "hostage timeline" \u2014 mines in water are indifferent to diplomacy. Clearance: 2-6 months.'},
+    {num:5,color:'var(--green)',text:'What\'s true in every scenario > scenario selection.',sub:'Gold, US shale, defense, fertilizer, tankers win everywhere. Airlines, EM importers, Gulf RE, EU chemicals lose everywhere.'}
+  ],
+
+  mapChokepoints: [
+    {coords:[56.25,26.58],name:'STRAIT OF HORMUZ',desc:'Status: CLOSED (insurance-driven)<br>20M bpd crude, 20% global LNG<br>Zero transits since Mar 2<br><span style="color:#f85149">All P&I coverage withdrawn</span>'},
+    {coords:[43.3,12.6],name:'BAB EL-MANDEB',desc:'Status: THREATENED<br>Houthis announced resumption Feb 28<br>Attack frequency: monitoring'}
+  ],
+
+  mapInfra: [
+    {coords:[56.34,25.97],name:'Fujairah Terminal',desc:'UAE bypass pipeline terminus. 1.5M bpd Habshan-Fujairah'},
+    {coords:[49.16,25.37],name:'Ras Tanura',desc:'Saudi Arabia. World\'s largest oil export terminal. 6.5M bpd capacity'},
+    {coords:[51.53,25.90],name:'Ras Laffan LNG',desc:'Qatar. STRUCK BY IRANIAN MISSILES. LNG production halted. 77 Mtpa capacity offline'},
+    {coords:[55.08,25.02],name:'Jebel Ali Port',desc:'World\'s 9th largest container port. Suspended operations. Fire from interception debris'},
+    {coords:[47.80,30.53],name:'Basra Oil Terminal',desc:'Iraq. No tanker loading possible. Storage filling rapidly'},
+    {coords:[56.17,27.13],name:'Bandar Abbas Naval HQ',desc:'Iran. DESTROYED by CENTCOM strikes. 19 ships, 1 submarine eliminated'},
+    {coords:[54.65,24.45],name:'Abu Dhabi',desc:'UAE. ADIA, FAB headquarters. Missile defense active'},
+    {coords:[39.17,24.47],name:'Yanbu (Red Sea)',desc:'Saudi East-West Pipeline terminus. 5-7M bpd theoretical, 2.6M bpd actual spare'}
+  ],
+
+  mapMilitary: [
+    {coords:[62,22],name:'USS Abraham Lincoln (CVN-72)',desc:'Arabian Sea. Carrier Air Wing 9. Primary strike platform'},
+    {coords:[34,33],name:'USS Gerald R. Ford (CVN-78)',desc:'Eastern Mediterranean off Israel'},
+    {coords:[60,25],name:'USS Harry S. Truman (CVN-75)',desc:'CENTCOM AOR since Dec 2025'},
+    {coords:[34.8,29.9],name:'Ovda Airbase, Israel',desc:'12 x F-22 Raptors deployed. First US offensive weapons on Israeli soil.'}
+  ],
+
+  mapRoutes: {
+    disrupted: [[56.5,26.0],[58,24.5],[62,22],[55,15],[44,12],[42,10]],
+    cape: [[58,24.5],[62,20],[58,10],[50,0],[40,-10],[18,-34],[20,-35]],
+    bypass: [[39.17,24.47],[38.0,24.2],[38.5,20],[42,15]]
+  },
+
+  chartConfigs: {
+    crude:  [{s:'NYMEX:CL1!',n:'WTI Crude'},{s:'TVC:UKOIL',n:'Brent Crude'},{s:'AMEX:USO',n:'USO ETF'},{s:'NYSE:XOM',n:'ExxonMobil'}],
+    gas:    [{s:'NYMEX:NG1!',n:'Henry Hub Nat Gas'},{s:'TVC:UKOIL',n:'Brent (ref)'},{s:'NYSE:LNG',n:'Cheniere Energy'},{s:'NYSE:EQT',n:'EQT Corp'}],
+    gold:   [{s:'COMEX:GC1!',n:'Gold Futures'},{s:'AMEX:GLD',n:'GLD ETF'},{s:'NYSE:NEM',n:'Newmont'},{s:'NYSE:GOLD',n:'Barrick Gold'}],
+    shipping:[{s:'AMEX:USO',n:'USO (proxy)'},{s:'NYSE:FRO',n:'Frontline'},{s:'NYSE:INSW',n:'Intl Seaways'},{s:'NYSE:STNG',n:'Scorpio Tankers'}],
+    defense:[{s:'NYSE:LMT',n:'Lockheed Martin'},{s:'NYSE:NOC',n:'Northrop Grumman'},{s:'NYSE:RTX',n:'RTX'},{s:'NYSE:PLTR',n:'Palantir'}],
+    airlines:[{s:'NYSE:AAL',n:'American Airlines'},{s:'NASDAQ:UAL',n:'United Airlines'},{s:'NYSE:DAL',n:'Delta'},{s:'AMEX:JETS',n:'JETS ETF'}],
+    em:     [{s:'AMEX:EWY',n:'iShares Korea'},{s:'AMEX:EEM',n:'iShares EM'},{s:'AMEX:INDA',n:'iShares India'},{s:'AMEX:EWJ',n:'iShares Japan'}],
+    fertilizer:[{s:'NYSE:CF',n:'CF Industries'},{s:'NYSE:NTR',n:'Nutrien'},{s:'NYSE:MOS',n:'Mosaic'},{s:'NYSE:ADM',n:'ADM'}]
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+const STATE = {
+  currentView: 'overview',
+  currentExposureTab: 'winners',
+  currentLiveTab: 'crude',
+  initialized: {},
+  echartsInstances: [],
+  agGridInstances: [],
+  splitInstances: []
+};
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const view = btn.dataset.view;
+    if (!view) return;
+    switchView(view);
+  });
+});
+
+function switchView(id) {
+  STATE.currentView = id;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const viewEl = document.getElementById('view-' + id);
+  const navEl = document.getElementById('nav-' + id);
+  if (viewEl) viewEl.classList.add('active');
+  if (navEl) navEl.classList.add('active');
+  initView(id);
+}
+
+function initView(id) {
+  if (STATE.initialized[id]) {
+    resizeAllCharts();
+    return;
+  }
+  STATE.initialized[id] = true;
+  try {
+    switch(id) {
+      case 'overview': initOverview(); break;
+      case 'tree': initTree(); break;
+      case 'scenarios': initScenarios(); break;
+      case 'exposures': initExposures(); break;
+      case 'monitoring': initMonitoring(); break;
+      case 'livedata': initLiveData(); break;
+    }
+  } catch(e) { console.error('Init error for view ' + id, e); }
+}
+
+// ============================================================
+// CLOCK
+// ============================================================
+function updateClock() {
+  const d = new Date();
+  const el = document.getElementById('clock');
+  if (el) el.textContent = d.toLocaleString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ============================================================
+// UTILITY
+// ============================================================
+function resizeAllCharts() {
+  STATE.echartsInstances.forEach(c => { try { c.resize(); } catch(e) {} });
+}
+window.addEventListener('resize', () => { resizeAllCharts(); });
+
+function colorVal(str) {
+  if (!str) return '';
+  if (str.startsWith('+')) return 'color:var(--green)';
+  if (str.startsWith('-') && str !== '--') return 'color:var(--red)';
+  return '';
+}
+
+function parsePercent(str) {
+  if (!str) return 0;
+  const m = str.match(/([+-]?\d+)/);
+  return m ? parseInt(m[1]) : 0;
+}
+
+// ============================================================
+// VIEW 1: OVERVIEW
+// ============================================================
+function initOverview() {
+  // Metrics strip
+  const strip = document.getElementById('metricStrip');
+  strip.innerHTML = DATA.metrics.map(m => `
+    <div class="metric-card" data-tippy-content="${m.label}: ${m.value} (${m.sub})">
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-value" ${m.valueColor ? 'style="color:'+m.valueColor+'"' : ''}>${m.value}</div>
+      <div class="metric-sub ${m.cls}">${m.sub}</div>
+    </div>
+  `).join('');
+
+  // Conviction calls
+  const cc = document.getElementById('convictionCalls');
+  cc.innerHTML = DATA.convictionCalls.map(c => `
+    <div style="margin-bottom:6px"><strong style="color:${c.color}">${c.num}.</strong> <strong style="color:var(--text-primary)">${c.text}</strong> ${c.sub}</div>
+  `).join('');
+
+  // Split.js for map / sidebar
+  try {
+    STATE.splitInstances.push(Split(['#overview-left', '#overview-right'], {
+      sizes: [60, 40], minSize: [300, 280], gutterSize: 4,
+      onDragEnd: () => { resizeAllCharts(); if (window._mapInstance) window._mapInstance.resize(); }
+    }));
+  } catch(e) {}
+
+  // Init map
+  setTimeout(initMap, 100);
+
+  // Scenario bar chart
+  initScenarioBarChart();
+
+  // Tippy tooltips
+  try { tippy('[data-tippy-content]', { theme: 'dark', placement: 'bottom', arrow: true }); } catch(e) {}
+}
+
+function initMap() {
+  try {
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      center: [55, 25.5],
+      zoom: 4,
+      attributionControl: false
+    });
+    window._mapInstance = map;
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    map.on('load', () => {
+      // Chokepoints - pulsing red dots
+      DATA.mapChokepoints.forEach(cp => {
+        const el = document.createElement('div');
+        el.style.cssText = 'width:16px;height:16px;background:#f85149;border-radius:50%;border:2px solid #fff;box-shadow:0 0 12px rgba(248,81,73,0.6);cursor:pointer;position:relative';
+        const pulse = document.createElement('div');
+        pulse.style.cssText = 'position:absolute;inset:-4px;border-radius:50%;background:#f85149;opacity:0.4;animation:pulse-ring 1.5s infinite';
+        el.appendChild(pulse);
+        new maplibregl.Marker({ element: el })
+          .setLngLat(cp.coords)
+          .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML('<b style="color:var(--amber)">' + cp.name + '</b><br>' + cp.desc))
+          .addTo(map);
+      });
+
+      // Infrastructure - amber squares
+      DATA.mapInfra.forEach(inf => {
+        const el = document.createElement('div');
+        el.style.cssText = 'width:10px;height:10px;background:#d29922;border-radius:2px;border:1px solid #fff;cursor:pointer';
+        new maplibregl.Marker({ element: el })
+          .setLngLat(inf.coords)
+          .setPopup(new maplibregl.Popup({ offset: 8 }).setHTML('<b style="color:var(--amber)">' + inf.name + '</b><br>' + inf.desc))
+          .addTo(map);
+      });
+
+      // Military - blue circles
+      DATA.mapMilitary.forEach(mil => {
+        const el = document.createElement('div');
+        el.style.cssText = 'width:10px;height:10px;background:#388bfd;border-radius:50%;border:1px solid #93c5fd;cursor:pointer';
+        new maplibregl.Marker({ element: el })
+          .setLngLat(mil.coords)
+          .setPopup(new maplibregl.Popup({ offset: 8 }).setHTML('<b style="color:var(--blue)">' + mil.name + '</b><br>' + mil.desc))
+          .addTo(map);
+      });
+
+      // Shipping routes as GeoJSON lines
+      map.addSource('route-disrupted', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: DATA.mapRoutes.disrupted } }
+      });
+      map.addLayer({
+        id: 'route-disrupted', type: 'line', source: 'route-disrupted',
+        paint: { 'line-color': '#f85149', 'line-width': 2, 'line-dasharray': [4, 3], 'line-opacity': 0.7 }
+      });
+
+      map.addSource('route-cape', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: DATA.mapRoutes.cape } }
+      });
+      map.addLayer({
+        id: 'route-cape', type: 'line', source: 'route-cape',
+        paint: { 'line-color': '#3fb950', 'line-width': 2, 'line-dasharray': [4, 3], 'line-opacity': 0.7 }
+      });
+
+      map.addSource('route-bypass', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: DATA.mapRoutes.bypass } }
+      });
+      map.addLayer({
+        id: 'route-bypass', type: 'line', source: 'route-bypass',
+        paint: { 'line-color': '#d29922', 'line-width': 2, 'line-dasharray': [3, 2], 'line-opacity': 0.6 }
+      });
+
+      // Stranded vessels circle
+      map.addSource('stranded', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'Point', coordinates: [55, 26] }, properties: {} }
+      });
+      map.addLayer({
+        id: 'stranded-circle', type: 'circle', source: 'stranded',
+        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 30, 6, 80, 8, 150], 'circle-color': '#f85149', 'circle-opacity': 0.08, 'circle-stroke-width': 1, 'circle-stroke-color': '#f85149', 'circle-stroke-opacity': 0.3 }
+      });
+
+      // Houthi threat zone
+      map.addSource('houthi', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'Point', coordinates: [43, 14] }, properties: {} }
+      });
+      map.addLayer({
+        id: 'houthi-circle', type: 'circle', source: 'houthi',
+        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 50, 6, 120, 8, 220], 'circle-color': '#d29922', 'circle-opacity': 0.06, 'circle-stroke-width': 1, 'circle-stroke-color': '#d29922', 'circle-stroke-opacity': 0.2 }
+      });
+    });
+  } catch(e) {
+    document.getElementById('map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px">Map unavailable - MapLibre GL not loaded</div>';
+  }
+}
+
+function initScenarioBarChart() {
+  try {
+    const dom = document.getElementById('scenarioBarChart');
+    const chart = echarts.init(dom, 'dark');
+    STATE.echartsInstances.push(chart);
+    chart.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 130, right: 40, top: 8, bottom: 8 },
+      xAxis: { type: 'value', max: 50, axisLine: { lineStyle: { color: '#1c2333' } }, axisTick: { show: false }, axisLabel: { color: '#484f58', fontFamily: 'IBM Plex Mono', fontSize: 10, formatter: '{value}%' }, splitLine: { lineStyle: { color: '#1c2333' } } },
+      yAxis: { type: 'category', data: ['S4: Conflagration', 'S3: Dual Chokepoint', 'S2: Attritional', 'S1: Goldman Base'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#c9d1d9', fontFamily: 'Inter', fontSize: 10 } },
+      series: [{
+        type: 'bar', data: [
+          { value: 15, itemStyle: { color: '#f85149' } },
+          { value: 30, itemStyle: { color: '#d29922' } },
+          { value: 40, itemStyle: { color: '#388bfd' } },
+          { value: 15, itemStyle: { color: '#3fb950' } }
+        ],
+        barWidth: 18,
+        label: { show: true, position: 'right', color: '#c9d1d9', fontFamily: 'IBM Plex Mono', fontSize: 11, fontWeight: 700, formatter: '{c}%' }
+      }],
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#0f1319', borderColor: '#1c2333', textStyle: { color: '#c9d1d9', fontFamily: 'IBM Plex Mono', fontSize: 11 } }
+    });
+  } catch(e) {}
+}
+
+// ============================================================
+// VIEW 2: SCENARIO TREE (D3.js)
+// ============================================================
+function initTree() {
+  const container = document.getElementById('treeContainer');
+  const width = container.clientWidth || 1200;
+  const height = container.clientHeight || 600;
+
+  const treeData = {
+    name: 'HORMUZ CRISIS\nFeb 28, 2026',
+    children: [
+      {
+        name: 'Diplomatic\nBreakthrough',
+        prob: '20-25%',
+        children: [
+          { name: 'S1: Goldman Base Case', prob: '15%', scenario: 'S1', color: '#3fb950', oil: '$82-95', duration: '3-6wk' }
+        ]
+      },
+      {
+        name: 'Extended\nCampaign',
+        prob: '45-50%',
+        children: [
+          {
+            name: 'No Mining\n(60%)',
+            prob: '60%',
+            children: [
+              { name: 'S2: Attritional Campaign', prob: '40%', scenario: 'S2', color: '#388bfd', oil: '$95-120', duration: '8-14wk' }
+            ]
+          },
+          {
+            name: 'Mining\nDecision (40%)',
+            prob: '40%',
+            children: [
+              { name: 'S3: Dual Chokepoint Siege', prob: '30%', scenario: 'S3', color: '#d29922', oil: '$125-170', duration: '6-12mo' }
+            ]
+          }
+        ]
+      },
+      {
+        name: 'Full\nEscalation',
+        prob: '15-20%',
+        children: [
+          { name: 'S4: Regional Conflagration', prob: '15%', scenario: 'S4', color: '#f85149', oil: '$150-250+', duration: '12+mo' }
+        ]
+      }
+    ]
+  };
+
+  const svg = d3.select(container).append('svg')
+    .attr('width', width)
+    .attr('height', height);
+
+  const g = svg.append('g');
+
+  const zoom = d3.zoom()
+    .scaleExtent([0.3, 3])
+    .on('zoom', (event) => g.attr('transform', event.transform));
+  svg.call(zoom);
+
+  const root = d3.hierarchy(treeData);
+  const treeLayout = d3.tree().size([height - 80, width - 350]);
+  treeLayout(root);
+
+  // Center the tree
+  svg.call(zoom.transform, d3.zoomIdentity.translate(60, 20));
+
+  // Links
+  g.selectAll('.tree-link')
+    .data(root.links())
+    .enter().append('path')
+    .attr('class', 'tree-link')
+    .attr('d', d3.linkHorizontal().x(d => d.y).y(d => d.x))
+    .attr('fill', 'none')
+    .attr('stroke', '#2d3748')
+    .attr('stroke-width', 1.5);
+
+  // Edge labels (probability)
+  g.selectAll('.edge-label')
+    .data(root.links().filter(l => l.target.data.prob))
+    .enter().append('text')
+    .attr('x', d => (d.source.y + d.target.y) / 2)
+    .attr('y', d => (d.source.x + d.target.x) / 2 - 6)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#768390')
+    .attr('font-size', '9px')
+    .attr('font-family', 'IBM Plex Mono')
+    .text(d => d.target.data.prob);
+
+  // Nodes
+  const nodes = g.selectAll('.tree-node')
+    .data(root.descendants())
+    .enter().append('g')
+    .attr('class', 'tree-node')
+    .attr('transform', d => `translate(${d.y},${d.x})`)
+    .style('cursor', d => d.data.scenario ? 'pointer' : 'default')
+    .on('click', (event, d) => {
+      if (d.data.scenario) {
+        switchView('scenarios');
+        setTimeout(() => {
+          const idx = ['S1','S2','S3','S4'].indexOf(d.data.scenario);
+          const cards = document.querySelectorAll('#scenarios-left .scenario-card');
+          if (cards[idx]) {
+            const detail = cards[idx].querySelector('.sc-detail');
+            if (detail && !detail.classList.contains('open')) detail.classList.add('open');
+            cards[idx].scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 150);
+      }
+    });
+
+  // Terminal nodes (scenario endpoints)
+  nodes.filter(d => d.data.scenario).each(function(d) {
+    const node = d3.select(this);
+    node.append('rect')
+      .attr('x', -70).attr('y', -30).attr('width', 140).attr('height', 60)
+      .attr('rx', 3).attr('fill', '#0f1319').attr('stroke', d.data.color).attr('stroke-width', 2);
+    node.append('text').attr('y', -14).attr('text-anchor', 'middle').attr('fill', d.data.color)
+      .attr('font-size', '10px').attr('font-weight', '700').attr('font-family', 'IBM Plex Mono')
+      .text(d.data.name.split(':')[0]);
+    node.append('text').attr('y', 0).attr('text-anchor', 'middle').attr('fill', '#c9d1d9')
+      .attr('font-size', '9px').attr('font-family', 'Inter')
+      .text(d.data.prob);
+    node.append('text').attr('y', 14).attr('text-anchor', 'middle').attr('fill', '#768390')
+      .attr('font-size', '8px').attr('font-family', 'IBM Plex Mono')
+      .text('Oil: ' + d.data.oil);
+    node.append('text').attr('y', 24).attr('text-anchor', 'middle').attr('fill', '#484f58')
+      .attr('font-size', '8px').attr('font-family', 'IBM Plex Mono')
+      .text(d.data.duration);
+  });
+
+  // Branch nodes
+  nodes.filter(d => !d.data.scenario && d.depth > 0).each(function(d) {
+    const node = d3.select(this);
+    node.append('rect')
+      .attr('x', -55).attr('y', -18).attr('width', 110).attr('height', 36)
+      .attr('rx', 3).attr('fill', '#161b24').attr('stroke', '#2d3748').attr('stroke-width', 1);
+    const lines = d.data.name.split('\n');
+    lines.forEach((line, i) => {
+      node.append('text').attr('y', -4 + i * 13).attr('text-anchor', 'middle')
+        .attr('fill', '#c9d1d9').attr('font-size', '9px').attr('font-family', 'Inter')
+        .text(line);
+    });
+  });
+
+  // Root node
+  nodes.filter(d => d.depth === 0).each(function(d) {
+    const node = d3.select(this);
+    node.append('rect')
+      .attr('x', -70).attr('y', -22).attr('width', 140).attr('height', 44)
+      .attr('rx', 3).attr('fill', '#1c2333').attr('stroke', '#f85149').attr('stroke-width', 2);
+    node.append('text').attr('y', -6).attr('text-anchor', 'middle')
+      .attr('fill', '#f85149').attr('font-size', '10px').attr('font-weight', '700').attr('font-family', 'IBM Plex Mono')
+      .text('HORMUZ CRISIS');
+    node.append('text').attr('y', 10).attr('text-anchor', 'middle')
+      .attr('fill', '#768390').attr('font-size', '9px').attr('font-family', 'IBM Plex Mono')
+      .text('Feb 28, 2026');
+  });
+}
+
+// ============================================================
+// VIEW 3: SCENARIOS
+// ============================================================
+function initScenarios() {
+  const left = document.getElementById('scenarios-left');
+  const right = document.getElementById('scenarios-right');
+
+  // Scenario cards
+  left.innerHTML = DATA.scenarios.map(s => `
+    <div class="card scenario-card ${s.cls}" onclick="this.querySelector('.sc-detail').classList.toggle('open')">
+      <div class="sc-head">
+        <div class="sc-prob" style="color:${s.probColor}">${s.prob}</div>
+        <div class="sc-info">
+          <div class="sc-name">${s.name}</div>
+          <div class="sc-desc">${s.desc}</div>
+          <div class="sc-metrics">${s.metrics.map(m => '<span>' + m + '</span>').join('')}</div>
+        </div>
+      </div>
+      <div class="sc-detail">${s.detail}</div>
+    </div>
+  `).join('');
+
+  // Right panel: comparison table, what's true, inflection timeline
+  right.innerHTML = `
+    <div class="card">
+      <div class="card-header">SCENARIO COMPARISON BY SECTOR</div>
+      <div class="card-body" style="overflow-x:auto;padding:4px 6px">
+        <table class="tbl" style="font-size:10px">
+          <thead><tr><th>Sector</th><th style="color:var(--green)">S1 (15%)</th><th style="color:var(--blue)">S2 (40%)</th><th style="color:var(--amber)">S3 (30%)</th><th style="color:var(--red)">S4 (15%)</th></tr></thead>
+          <tbody>
+            ${DATA.sectorComparison.map(r => `<tr><td style="color:var(--text-primary)">${r[0]}</td>${r.slice(1).map((c,i) => {
+              let cls = '';
+              if (c.startsWith('+')) cls = 'pos';
+              else if (c.includes('Default') || c.includes('Failed') || c.includes('Famine') || c.includes('damaged') || c.includes('-70') || c.includes('-90') || c.includes('-95') || c.includes('-40') || c.includes('-30') || c.includes('-45') || c.includes('-50') || c.includes('-60') || c.includes('150-250') || c.includes('12+') || c.includes('6-12') || c.includes('RECESSION') || c.includes('$125') || c.includes('$150') || c.includes('$100') || c.includes('18-36')) cls = 'neg';
+              return '<td class="'+cls+'">'+c+'</td>';
+            }).join('')}</tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="flex:1">
+      <div class="card-header">WHAT'S TRUE IN EVERY SCENARIO</div>
+      <div class="card-body" style="font-size:11px;color:var(--text-secondary);line-height:1.6">
+        <div style="display:grid;gap:5px">
+          <div><span style="color:var(--green);font-family:var(--font-mono);font-weight:700">LONG</span> &mdash; Gold (GLD/NEM), US Shale (EOG/FANG/DVN), Defense (LMT/NOC/RTX), Fertilizer (CF/NTR), Tankers (FRO/INSW), US LNG (LNG), US Nuclear (CEG), TIPS</div>
+          <div><span style="color:var(--red);font-family:var(--font-mono);font-weight:700">SHORT</span> &mdash; Airlines (AAL/UAL/DAL), Gulf RE (EMAAR.DU), EU Chemicals (BAS.DE/1COV.DE), Asian Refiners (IOC.NS/096770.KS), EM Importers (EWY/EMB), Gulf Banks (ENBD.DU)</div>
+          <div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border)"><strong style="color:var(--text-primary)">Key Divergence Point:</strong> <span style="color:var(--amber)">Mining of the strait</span> is the single branching event that produces the largest repricing. Separates S2 ($95-120 oil) from S3 ($125-170). Monitor CENTCOM mine reports, MCM deployments, IRGC statements daily.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">INFLECTION POINT TIMELINE</div>
+      <div class="card-body" style="padding:6px 8px"><div id="inflectionChart" style="height:120px"></div></div>
+    </div>
+  `;
+
+  // Split.js
+  try {
+    STATE.splitInstances.push(Split(['#scenarios-left', '#scenarios-right'], {
+      sizes: [50, 50], minSize: [300, 300], gutterSize: 4
+    }));
+  } catch(e) {}
+
+  // Inflection timeline chart
+  setTimeout(() => {
+    try {
+      const dom = document.getElementById('inflectionChart');
+      if (!dom) return;
+      const chart = echarts.init(dom, 'dark');
+      STATE.echartsInstances.push(chart);
+      chart.setOption({
+        backgroundColor: 'transparent',
+        grid: { left: 10, right: 10, top: 10, bottom: 30 },
+        xAxis: {
+          type: 'category',
+          data: ['Days 5-12\nHouthi freq', 'Days 7-14\nDFC details', 'Days 10-21\nMining decision', 'Days 14-28\nDiplomacy', 'Days 21-42\nUS scope', 'Days 42-56\nInsurance'],
+          axisLine: { lineStyle: { color: '#1c2333' } },
+          axisTick: { show: false },
+          axisLabel: { color: '#768390', fontFamily: 'Inter', fontSize: 9, interval: 0 }
+        },
+        yAxis: { show: false },
+        series: [{
+          type: 'bar',
+          data: [
+            { value: 1, itemStyle: { color: '#f85149' } },
+            { value: 1, itemStyle: { color: '#388bfd' } },
+            { value: 1, itemStyle: { color: '#f85149' } },
+            { value: 1, itemStyle: { color: '#d29922' } },
+            { value: 1, itemStyle: { color: '#a371f7' } },
+            { value: 1, itemStyle: { color: '#39d2c0' } }
+          ],
+          barWidth: '50%'
+        }],
+        tooltip: { show: false }
+      });
+    } catch(e) {}
+  }, 50);
+}
+
+// ============================================================
+// VIEW 4: EXPOSURES
+// ============================================================
+function initExposures() {
+  const tabNames = ['Winners', 'Losers', 'L/S Pairs', 'Asymmetric Bets', 'Heat Map', 'EM Sovereigns'];
+  const tabIds = ['winners', 'losers', 'pairs', 'asymmetric', 'heatmap', 'em'];
+  const tabsEl = document.getElementById('exposureTabs');
+  tabsEl.innerHTML = tabIds.map((id, i) =>
+    `<button class="tab-btn ${i === 0 ? 'active' : ''}" data-tab="${id}">${tabNames[i]}</button>`
+  ).join('');
+
+  tabsEl.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      STATE.currentExposureTab = btn.dataset.tab;
+      renderExposureTab(btn.dataset.tab);
+    });
+  });
+
+  renderExposureTab('winners');
+}
+
+function renderExposureTab(tabId) {
+  const content = document.getElementById('exposureContent');
+
+  switch(tabId) {
+    case 'winners': renderAgGridTable(content, DATA.winners, true); break;
+    case 'losers': renderAgGridTable(content, DATA.losers, false); break;
+    case 'pairs': renderPairsTab(content); break;
+    case 'asymmetric': renderAsymmetricTab(content); break;
+    case 'heatmap': renderHeatmapTab(content); break;
+    case 'em': renderEmTab(content); break;
+  }
+}
+
+function renderAgGridTable(container, data, isWinners) {
+  container.innerHTML = '<div id="exposureGrid" class="ag-theme-quartz-dark" style="width:100%;height:100%"></div>';
+  const gridDiv = document.getElementById('exposureGrid');
+
+  const pctCellRenderer = (params) => {
+    if (!params.value) return '';
+    const val = params.value;
+    const color = val.startsWith('+') ? '#3fb950' : val.startsWith('-') ? '#f85149' : '#c9d1d9';
+    return `<span style="color:${color}">${val}</span>`;
+  };
+
+  const confCellRenderer = (params) => {
+    if (!params.value) return '';
+    const color = params.value === 'High' ? '#3fb950' : params.value.includes('Med') ? '#d29922' : '#768390';
+    return `<span style="color:${color};font-weight:600">${params.value}</span>`;
+  };
+
+  const columnDefs = [
+    { field: 'n', headerName: '#', width: 45, sortable: true },
+    { field: 'name', headerName: 'Name', width: 140, sortable: true, filter: true },
+    { field: 'ticker', headerName: 'Ticker', width: 100, sortable: true, filter: true },
+    { field: 'sector', headerName: 'Sector', width: 110, sortable: true, filter: true },
+    { field: 's1', headerName: 'S1', width: 75, cellRenderer: pctCellRenderer, sortable: true, comparator: (a, b) => parsePercent(a) - parsePercent(b) },
+    { field: 's2', headerName: 'S2', width: 75, cellRenderer: pctCellRenderer, sortable: true, comparator: (a, b) => parsePercent(a) - parsePercent(b) },
+    { field: 's3', headerName: 'S3', width: 75, cellRenderer: pctCellRenderer, sortable: true, comparator: (a, b) => parsePercent(a) - parsePercent(b) },
+    { field: 's4', headerName: 'S4', width: 75, cellRenderer: pctCellRenderer, sortable: true, comparator: (a, b) => parsePercent(a) - parsePercent(b) },
+    { field: 'pw', headerName: 'Prob-Wtd', width: 90, cellRenderer: pctCellRenderer, sortable: true, comparator: (a, b) => parsePercent(a) - parsePercent(b), sort: isWinners ? 'desc' : 'asc' },
+    { field: 'conf', headerName: 'Conf', width: 80, cellRenderer: confCellRenderer, sortable: true }
+  ];
+
+  try {
+    const gridApi = agGrid.createGrid(gridDiv, {
+      columnDefs: columnDefs,
+      rowData: data,
+      domLayout: 'normal',
+      headerHeight: 32,
+      rowHeight: 28,
+      suppressCellFocus: true,
+      animateRows: true
+    });
+    STATE.agGridInstances.push(gridApi);
+  } catch(e) {
+    // Fallback to HTML table
+    container.innerHTML = '<div style="overflow:auto;height:100%;padding:8px">' + buildHtmlTable(data, ['n','name','ticker','sector','s1','s2','s3','s4','pw','conf']) + '</div>';
+  }
+}
+
+function buildHtmlTable(data, fields) {
+  let html = '<table class="tbl"><thead><tr>' + fields.map(f => '<th>' + f + '</th>').join('') + '</tr></thead><tbody>';
+  data.forEach(row => {
+    html += '<tr>' + fields.map(f => {
+      const v = row[f] || '';
+      let style = colorVal(String(v));
+      return `<td style="${style}">${v}</td>`;
+    }).join('') + '</tr>';
+  });
+  return html + '</tbody></table>';
+}
+
+function renderPairsTab(container) {
+  container.innerHTML = '<div id="pairsGrid" class="ag-theme-quartz-dark" style="width:100%;height:100%"></div>';
+  const gridDiv = document.getElementById('pairsGrid');
+
+  const pctCellRenderer = (params) => {
+    if (!params.value) return '';
+    const val = params.value;
+    const color = val.includes('+') ? '#3fb950' : '#c9d1d9';
+    return `<span style="color:${color}">${val}</span>`;
+  };
+
+  const columnDefs = [
+    { field: 'long', headerName: 'Long', width: 110, cellStyle: { color: '#3fb950' } },
+    { field: 'short', headerName: 'Short', width: 110, cellStyle: { color: '#f85149' } },
+    { field: 's1', headerName: 'S1', width: 90, cellRenderer: pctCellRenderer },
+    { field: 's2', headerName: 'S2', width: 90, cellRenderer: pctCellRenderer },
+    { field: 's3', headerName: 'S3', width: 90, cellRenderer: pctCellRenderer },
+    { field: 's4', headerName: 'S4', width: 90, cellRenderer: pctCellRenderer },
+    { field: 'logic', headerName: 'Logic', flex: 1, cellStyle: { color: '#768390', fontFamily: 'Inter' } }
+  ];
+
+  try {
+    const gridApi = agGrid.createGrid(gridDiv, {
+      columnDefs: columnDefs,
+      rowData: DATA.pairs,
+      domLayout: 'normal',
+      headerHeight: 32,
+      rowHeight: 28,
+      suppressCellFocus: true
+    });
+    STATE.agGridInstances.push(gridApi);
+  } catch(e) {
+    container.innerHTML = '<div style="overflow:auto;height:100%;padding:8px">' + buildHtmlTable(DATA.pairs, ['long','short','s1','s2','s3','s4','logic']) + '</div>';
+  }
+}
+
+function renderAsymmetricTab(container) {
+  container.innerHTML = `
+    <div style="overflow-y:auto;height:100%;padding:8px;display:flex;flex-direction:column;gap:6px">
+      <div class="card">
+        <div class="card-header" style="color:var(--green)">TIER 1: POSITIVE EV ACROSS ALL SCENARIOS</div>
+        <div class="card-body" style="padding:4px 6px">
+          <table class="tbl"><thead><tr><th>Position</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>Prob-Wtd</th></tr></thead><tbody>
+            ${DATA.asymTier1.map(r => `<tr><td style="color:var(--text-primary)">${r.pos}</td><td style="${colorVal(r.s1)}">${r.s1}</td><td style="${colorVal(r.s2)}">${r.s2}</td><td style="${colorVal(r.s3)}">${r.s3}</td><td style="${colorVal(r.s4)}">${r.s4}</td><td style="color:var(--green);font-weight:700">${r.pw}</td></tr>`).join('')}
+          </tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" style="color:var(--amber)">TIER 2: CONVEXITY PLAYS (Win big in tail, lose small in base)</div>
+        <div class="card-body" style="padding:4px 6px">
+          <table class="tbl"><thead><tr><th>Position</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>Payoff</th></tr></thead><tbody>
+            ${DATA.asymTier2.map(r => `<tr><td style="color:var(--text-primary)">${r.pos}</td><td style="${colorVal(r.s1)}">${r.s1}</td><td style="${colorVal(r.s2)}">${r.s2}</td><td style="${colorVal(r.s3)}">${r.s3}</td><td style="${colorVal(r.s4)}">${r.s4}</td><td style="color:var(--amber);font-weight:700">${r.payoff}</td></tr>`).join('')}
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderHeatmapTab(container) {
+  container.innerHTML = '<div id="heatmapEChart" style="width:100%;height:100%"></div>';
+  setTimeout(() => {
+    try {
+      const dom = document.getElementById('heatmapEChart');
+      if (!dom) return;
+      const chart = echarts.init(dom, 'dark');
+      STATE.echartsInstances.push(chart);
+
+      const tickers = [...DATA.heatmapTickers].reverse();
+      const values = [...DATA.heatmapValues].reverse();
+      const colors = values.map(v => v >= 50 ? '#3fb950' : v >= 20 ? 'rgba(63,185,80,0.6)' : v > 0 ? 'rgba(63,185,80,0.35)' : v > -20 ? 'rgba(248,81,73,0.35)' : v > -35 ? 'rgba(248,81,73,0.6)' : '#f85149');
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        grid: { left: 90, right: 50, top: 10, bottom: 20 },
+        xAxis: {
+          type: 'value',
+          axisLine: { lineStyle: { color: '#1c2333' } },
+          axisTick: { show: false },
+          axisLabel: { color: '#484f58', fontFamily: 'IBM Plex Mono', fontSize: 10, formatter: v => (v > 0 ? '+' : '') + v + '%' },
+          splitLine: { lineStyle: { color: '#1c2333' } }
+        },
+        yAxis: {
+          type: 'category',
+          data: tickers,
+          axisLine: { show: false },
+          axisTick: { show: false },
+          axisLabel: { color: '#c9d1d9', fontFamily: 'IBM Plex Mono', fontSize: 9 }
+        },
+        series: [{
+          type: 'bar',
+          data: values.map((v, i) => ({ value: v, itemStyle: { color: colors[i] } })),
+          barWidth: 12,
+          label: { show: true, position: v => v.value >= 0 ? 'right' : 'left', color: '#c9d1d9', fontFamily: 'IBM Plex Mono', fontSize: 9, formatter: p => (p.value > 0 ? '+' : '') + p.value + '%' }
+        }],
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#0f1319', borderColor: '#1c2333', textStyle: { color: '#c9d1d9', fontFamily: 'IBM Plex Mono', fontSize: 11 } }
+      });
+    } catch(e) {}
+  }, 50);
+}
+
+function renderEmTab(container) {
+  container.innerHTML = '<div id="emGrid" class="ag-theme-quartz-dark" style="width:100%;height:100%"></div>';
+  const gridDiv = document.getElementById('emGrid');
+
+  const pctCellRenderer = (params) => {
+    if (!params.value) return '';
+    const val = params.value;
+    const color = val.startsWith('+') ? '#3fb950' : val.startsWith('-') ? '#f85149' : val.startsWith('~') ? '#f85149' : '#c9d1d9';
+    return `<span style="color:${color}">${val}</span>`;
+  };
+
+  const columnDefs = [
+    { field: 'country', headerName: 'Country', width: 110, sortable: true },
+    { field: 'index', headerName: 'Index/Bond', width: 160, sortable: true },
+    { field: 's1', headerName: 'S1', width: 75, cellRenderer: pctCellRenderer, sortable: true },
+    { field: 's2', headerName: 'S2', width: 75, cellRenderer: pctCellRenderer, sortable: true },
+    { field: 's3', headerName: 'S3', width: 75, cellRenderer: pctCellRenderer, sortable: true },
+    { field: 's4', headerName: 'S4', width: 75, cellRenderer: pctCellRenderer, sortable: true },
+    { field: 'pw', headerName: 'Prob-Wtd', width: 90, cellRenderer: pctCellRenderer, sortable: true },
+    { field: 'def', headerName: 'Default Prob', width: 100, cellRenderer: pctCellRenderer, sortable: true }
+  ];
+
+  try {
+    const gridApi = agGrid.createGrid(gridDiv, {
+      columnDefs: columnDefs,
+      rowData: DATA.emSovereigns,
+      domLayout: 'normal',
+      headerHeight: 32,
+      rowHeight: 28,
+      suppressCellFocus: true
+    });
+    STATE.agGridInstances.push(gridApi);
+  } catch(e) {
+    container.innerHTML = '<div style="overflow:auto;height:100%;padding:8px">' + buildHtmlTable(DATA.emSovereigns, ['country','index','s1','s2','s3','s4','pw','def']) + '</div>';
+  }
+}
+
+// ============================================================
+// VIEW 5: MONITORING
+// ============================================================
+function initMonitoring() {
+  const left = document.getElementById('monitoring-left');
+  const right = document.getElementById('monitoring-right');
+
+  // Signals checklist
+  let signalsHtml = '<div class="card" style="flex:1;overflow-y:auto"><div class="card-header">THIS WEEK\'S SIGNALS (Mar 5-12)</div><div class="card-body">';
+  DATA.signals.forEach(s => {
+    const saved = localStorage.getItem(s.id) === 'true';
+    signalsHtml += `<div class="check-item">
+      <input type="checkbox" id="${s.id}" ${saved ? 'checked' : ''} onchange="localStorage.setItem('${s.id}',this.checked)">
+      <label for="${s.id}"><strong>${s.label}</strong><br><span style="font-size:9px;color:var(--text-tertiary)">${s.detail}</span><br><span style="font-size:8px;color:var(--text-tertiary);font-family:var(--font-mono)">Source: ${s.source}</span>
+      <div style="margin-top:2px">${s.confirms.map(c => '<span class="badge badge-' + c.toLowerCase() + '">' + c + '</span>').join('')}${s.disconfirms.map(c => '<span class="badge" style="background:#2d3748;color:#768390;text-decoration:line-through">' + c + '</span>').join('')}</div></label>
+    </div>`;
+  });
+  signalsHtml += '</div></div>';
+
+  // Triggers
+  let triggersHtml = '<div class="card"><div class="card-header" style="color:var(--red)">TRIGGER POINTS</div><div class="card-body">';
+  DATA.triggers.forEach(t => {
+    triggersHtml += `<div class="trigger">
+      <div class="trigger-dot ${t.status}"></div>
+      <div class="trigger-info">
+        <div class="trigger-name">${t.name}</div>
+        <div class="trigger-detail">Current: ${t.current} | Threshold: ${t.threshold}</div>
+        <div style="font-size:9px;color:var(--text-secondary);margin-top:1px">${t.action}</div>
+      </div>
+    </div>`;
+  });
+  triggersHtml += '</div></div>';
+
+  left.innerHTML = signalsHtml + triggersHtml;
+
+  // Right: confirmation matrix (ECharts heatmap) + freshness
+  right.innerHTML = `
+    <div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+      <div class="card-header">SCENARIO CONFIRMATION MATRIX</div>
+      <div style="flex:1;min-height:0;padding:4px"><div id="confirmMatrixChart" style="width:100%;height:100%"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">ANALYSIS FRESHNESS</div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="trigger-dot clear"></div>
+          <div>
+            <div style="font-size:11px;font-weight:500">Analysis Date: March 5, 2026</div>
+            <div style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono)">Day 5 of crisis | Next update: when monitoring trigger crossed or weekly</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Split.js
+  try {
+    STATE.splitInstances.push(Split(['#monitoring-left', '#monitoring-right'], {
+      sizes: [45, 55], minSize: [280, 300], gutterSize: 4,
+      onDragEnd: () => resizeAllCharts()
+    }));
+  } catch(e) {}
+
+  // ECharts heatmap for confirmation matrix
+  setTimeout(() => {
+    try {
+      const dom = document.getElementById('confirmMatrixChart');
+      if (!dom) return;
+      const chart = echarts.init(dom, 'dark');
+      STATE.echartsInstances.push(chart);
+
+      const scenarios = ['S1', 'S2', 'S3', 'S4'];
+      const signals = DATA.matrixSignals;
+      const heatData = [];
+      DATA.matrixData.forEach((row, i) => {
+        row.forEach((val, j) => {
+          heatData.push([j, signals.length - 1 - i, val]);
+        });
+      });
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        grid: { left: 160, right: 20, top: 30, bottom: 10 },
+        xAxis: {
+          type: 'category',
+          data: scenarios,
+          position: 'top',
+          axisLine: { show: false },
+          axisTick: { show: false },
+          axisLabel: { color: '#768390', fontFamily: 'IBM Plex Mono', fontSize: 10, fontWeight: 600 }
+        },
+        yAxis: {
+          type: 'category',
+          data: [...signals].reverse(),
+          axisLine: { show: false },
+          axisTick: { show: false },
+          axisLabel: { color: '#768390', fontFamily: 'IBM Plex Mono', fontSize: 9, width: 150, overflow: 'truncate' }
+        },
+        visualMap: {
+          show: false,
+          min: 0, max: 1,
+          inRange: { color: ['#161b24', '#388bfd'] }
+        },
+        series: [{
+          type: 'heatmap',
+          data: heatData,
+          itemStyle: { borderWidth: 1, borderColor: '#0f1319' },
+          label: {
+            show: true,
+            formatter: p => p.value[2] ? '\u2713' : '\u00B7',
+            color: p => '#c9d1d9',
+            fontSize: 12,
+            fontWeight: 700
+          }
+        }],
+        tooltip: {
+          formatter: p => {
+            const sig = signals[signals.length - 1 - p.value[1]];
+            const sc = scenarios[p.value[0]];
+            return `${sig}<br>${sc}: ${p.value[2] ? 'Confirms' : 'No signal'}`;
+          },
+          backgroundColor: '#0f1319',
+          borderColor: '#1c2333',
+          textStyle: { color: '#c9d1d9', fontSize: 11 }
+        }
+      });
+    } catch(e) {}
+  }, 100);
+}
+
+// ============================================================
+// VIEW 6: LIVE DATA
+// ============================================================
+function initLiveData() {
+  const tabNames = ['Crude Oil', 'Natural Gas', 'Gold', 'Shipping', 'Defense', 'Airlines', 'EM / Korea', 'Fertilizer'];
+  const tabIds = ['crude', 'gas', 'gold', 'shipping', 'defense', 'airlines', 'em', 'fertilizer'];
+  const tabsEl = document.getElementById('liveTabs');
+  tabsEl.innerHTML = tabIds.map((id, i) =>
+    `<button class="tab-btn ${i === 0 ? 'active' : ''}" data-livetab="${id}">${tabNames[i]}</button>`
+  ).join('');
+
+  tabsEl.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      STATE.currentLiveTab = btn.dataset.livetab;
+      loadTVCharts(btn.dataset.livetab);
+    });
+  });
+
+  loadTVCharts('crude');
+}
+
+function loadTVCharts(setId) {
+  const configs = DATA.chartConfigs[setId] || DATA.chartConfigs.crude;
+  configs.forEach((cfg, i) => {
+    const container = document.getElementById('tv-chart-' + i);
+    if (!container) return;
+    const cid = 'tv_widget_' + setId + '_' + i;
+    container.innerHTML = '<div class="tv-container"><div id="' + cid + '" style="height:100%"></div></div>';
+    try {
+      if (typeof TradingView !== 'undefined') {
+        new TradingView.widget({
+          autosize: true,
+          symbol: cfg.s,
+          interval: 'D',
+          timezone: 'America/New_York',
+          theme: 'dark',
+          style: '1',
+          locale: 'en',
+          toolbar_bg: '#080b11',
+          enable_publishing: false,
+          hide_top_toolbar: false,
+          hide_legend: false,
+          save_image: false,
+          container_id: cid,
+          backgroundColor: '#0f1319',
+          gridColor: '#1c2333'
+        });
+      } else {
+        container.innerHTML = '<div class="tv-container"><div class="tv-placeholder">Live data unavailable &mdash; TradingView loading...</div></div>';
+      }
+    } catch(e) {
+      container.innerHTML = '<div class="tv-container"><div class="tv-placeholder">Live data unavailable &mdash; TradingView CDN not loaded</div></div>';
+    }
+  });
+}
+
+// ============================================================
+// INIT ON LOAD
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  initView('overview');
+});
+
+// Also init if DOM already loaded
+if (document.readyState !== 'loading') {
+  initView('overview');
+}
+</script>
+</body>
+</html>
